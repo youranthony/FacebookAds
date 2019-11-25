@@ -1,0 +1,686 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# # FACEBOOK ADS TARGETING
+
+# In[ ]:
+
+
+#--------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+# # DATA INSTALL AND IMPORT
+
+# In[ ]:
+
+
+#pip install pydotplus
+
+
+# In[ ]:
+
+
+pip install nbconvert
+
+
+# In[ ]:
+
+
+#pip install graphviz
+
+
+# In[ ]:
+
+
+#imports
+import pandas as pd
+import numpy as np
+from sklearn.feature_selection import VarianceThreshold
+from sklearn.metrics import accuracy_score
+import re
+from sklearn.tree import DecisionTreeClassifier # Import Decision Tree Classifier
+from sklearn.model_selection import train_test_split # Import train_test_split function
+from sklearn import metrics #Import scikit-learn metrics module for accuracy calculation
+from sklearn.tree import export_graphviz
+from sklearn.externals.six import StringIO  
+from IPython.display import Image
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pydotplus
+import plotly.express as px
+
+
+# In[ ]:
+
+
+df = pd.read_csv('Desktop/school/adult.csv', sep=',',names=["age", "workclass", "fnlwgt", "education", "education-num", "marital-status", "occupation", "relationship", "race", "sex", "capital-gain","capital-loss","hours-per-week","native-country","income_bracket"]) #import data
+
+
+# In[ ]:
+
+
+df.head() #first five rows of data
+
+
+# In[ ]:
+
+
+df.dtypes #column data types
+
+
+# In[ ]:
+
+
+pd.set_option('display.max_colwidth', -1)
+df.info() #column types and counts
+
+
+# # DATA PREPERATION
+
+# ## income_bracket (target variable) I did this one first for the charts below
+
+# In[ ]:
+
+
+df.income_bracket.value_counts(dropna=False) #noticed an error where some entires have a period in them
+
+
+# In[ ]:
+
+
+df['income_bracket'] = df.apply(lambda row: 1 if '>50K'in row['income_bracket'] else 0, axis=1) #this will be my target vairable. I converted the range to either 1 or 0.
+
+
+# In[ ]:
+
+
+df.income_bracket.value_counts().plot(kind='pie')
+
+
+# In[ ]:
+
+
+df = df[(df.astype(str) != ' ?').all(axis=1)] # Remove entries with a "?" from data
+
+
+# ## age
+
+# In[ ]:
+
+
+plt.hist(df['age']);
+
+
+# In[ ]:
+
+
+df['age'].describe() #additional proof regarding high values
+
+
+# In[ ]:
+
+
+df.loc[(df.age >= 17) &  (df.age <= 24), 'age'] = 1 #create new age group
+df.loc[(df.age >= 25) &  (df.age <= 34), 'age'] = 2 #create new age group
+df.loc[(df.age >= 35) &  (df.age <= 44), 'age'] = 3 #create new age group
+df.loc[(df.age >= 45) &  (df.age <= 54), 'age'] = 4 #create new age group
+df.loc[(df.age >= 55) &  (df.age <= 64), 'age'] = 5 #create new age group
+df.loc[(df.age >= 65), 'age'] = 6 #create new age group
+
+
+# In[ ]:
+
+
+df.loc[df.age == 1, 'age'] = '17-24' #create new age group
+df.loc[df.age == 2, 'age'] = '25-34' #create new age group
+df.loc[df.age == 3, 'age'] = '35-44' #create new age group
+df.loc[df.age == 4, 'age'] = '45-54' #create new age group
+df.loc[df.age == 5, 'age'] = '55-64' #create new age group
+df.loc[df.age == 6, 'age'] = '65+' #create new age group
+
+
+# In[ ]:
+
+
+df.age.value_counts(dropna=False) #review new records
+
+
+# In[ ]:
+
+
+# ‘hue’ is used to visualize the effect of an additional variable to the current distribution.  
+ax = sns.countplot(df.age, hue=df['income_bracket'])  
+ax.set_xticklabels(ax.get_xticklabels(), rotation=40, ha="right")
+plt.show()  
+
+
+# ## workclass
+
+# In[ ]:
+
+
+df.workclass.value_counts(dropna=False) #noticed many entries with a "?"
+
+
+# In[ ]:
+
+
+ax = sns.countplot(df.workclass, hue=df['income_bracket'])  
+ax.set_xticklabels(ax.get_xticklabels(), rotation=40, ha="right")
+plt.show()  #plot income & workclass
+
+
+# ## fnlwgt
+
+# In[ ]:
+
+
+plt.hist(df['fnlwgt']); #extremely high and varied values
+
+
+# In[ ]:
+
+
+df['fnlwgt'].describe() #additional proof regarding high values
+
+
+# In[ ]:
+
+
+#df['fnlwgt'] = df['fnlwgt'].apply(lambda x: np.log1p(x)) #normalized values by converting to logarithm. Removed from analysis and did not use this approach.
+
+
+# ## education
+
+# In[ ]:
+
+
+
+ax = sns.countplot(df.education, hue=df['income_bracket'])  
+ax.set_xticklabels(ax.get_xticklabels(), rotation=40, ha="right")
+plt.show()    #plot income & education
+
+
+# In[ ]:
+
+
+df.education.value_counts(dropna=False) #assessment of values. I will create new categories for observations that have individual grades.
+
+
+# In[ ]:
+
+
+df.loc[df.education == ' 1st-4th', 'education'] = '1st-8th' #groups grades into larger categories
+df.loc[df.education == ' 7th-8th', 'education'] = '1st-8th' #groups grades into larger categories
+df.loc[df.education == ' 5th-6th', 'education'] = '1st-8th' #groups grades into larger categories
+df.loc[df.education == ' 9th', 'education'] = '9th-12th' #groups grades into larger categories
+df.loc[df.education == ' 10th', 'education'] = '9th-12th' #groups grades into larger categories
+df.loc[df.education == ' 11th', 'education'] = '9th-12th' #groups grades into larger categories
+df.loc[df.education == ' 12th', 'education'] = '9th-12th' #groups grades into larger categories
+
+
+# In[ ]:
+
+
+df.loc[df.education == ' Preschool', 'education'] = 'Preschool' #remove additional blank space
+df.loc[df.education == ' Doctorate', 'education'] = 'Doctorate' #remove additional blank space
+df.loc[df.education == ' Prof-school', 'education'] = 'Prof-school' #remove additional blank space
+df.loc[df.education == ' Assoc-acdm', 'education'] = 'Assoc-acdm' #remove additional blank space
+df.loc[df.education == ' Assoc-voc', 'education'] = 'Assoc-voc' #remove additional blank space
+df.loc[df.education == ' Masters', 'education'] = 'Masters' #remove additional blank space
+df.loc[df.education == ' Bachelors', 'education'] = 'Bachelors' #remove additional blank space
+df.loc[df.education == ' Some-college', 'education'] = 'Some-college' #remove additional blank space
+df.loc[df.education == ' HS-grad', 'education'] = 'HS-grad' #remove additional blank space
+
+
+# ## education-num
+
+# In[ ]:
+
+
+plt.hist(df['education-num']); #distribution of educaiton-num
+
+
+# ## marital-status
+
+# In[ ]:
+
+
+df['marital-status'].value_counts(dropna=False)
+
+
+# In[ ]:
+
+
+
+ax = sns.countplot(df['marital-status'], hue=df['income_bracket'])  
+ax.set_xticklabels(ax.get_xticklabels(), rotation=40, ha="right")
+plt.show()    #plot income & marital-status
+
+
+# ## occupation
+
+# In[ ]:
+
+
+df['occupation'].value_counts(dropna=False)
+
+
+# In[ ]:
+
+
+ax = sns.countplot(df['occupation'], hue=df['income_bracket'])  
+ax.set_xticklabels(ax.get_xticklabels(), rotation=40, ha="right")
+plt.show()    #plot income & occupation
+
+
+# ## relationship
+
+# In[ ]:
+
+
+df['relationship'].value_counts(dropna=False)
+
+
+# In[ ]:
+
+
+ax = sns.countplot(df['relationship'], hue=df['income_bracket'])  
+ax.set_xticklabels(ax.get_xticklabels(), rotation=40, ha="right")
+plt.show()   #plot income & relationship
+
+
+# ## race
+
+# In[ ]:
+
+
+df['race'].value_counts(dropna=False)
+
+
+# In[ ]:
+
+
+ax = sns.countplot(df['race'], hue=df['income_bracket'])  
+ax.set_xticklabels(ax.get_xticklabels(), rotation=40, ha="right")
+plt.show()   #plot income & race
+
+
+# ## sex
+
+# In[ ]:
+
+
+df['sex'].value_counts(dropna=False) #high index of males
+
+
+# In[ ]:
+
+
+df.sex.value_counts().plot(kind='pie')
+
+
+# In[ ]:
+
+
+ax = sns.countplot(df['sex'], hue=df['income_bracket'])  
+ax.set_xticklabels(ax.get_xticklabels(), rotation=40, ha="right")
+plt.show()   #plot income & sex
+
+
+# ## capital-gain
+
+# In[ ]:
+
+
+df['capital-gain'].describe()
+
+
+# In[ ]:
+
+
+#df['capital-gain'] = df['capital-gain'].apply(lambda x: np.log1p(x)) #normalized values by converting to logarithm. Did not use this approach in analysis. 
+
+
+# ## capital-loss
+
+# In[ ]:
+
+
+df['capital-loss'].describe()
+
+
+# In[ ]:
+
+
+#df['capital-loss'] = df['capital-loss'].apply(lambda x: np.log1p(x)) #normalized values by converting to logarithm. Did not end up using this approach in analysis. 
+
+
+# ## hours-per-week
+
+# In[ ]:
+
+
+df['hours-per-week'].describe()
+
+
+# In[ ]:
+
+
+#df['hours-per-week'] = df['hours-per-week'].apply(lambda x: np.log1p(x)) #normalized values by converting to logarithm. Did not end up using this approach in analysis. Did not use this appraoch in analysis. 
+
+
+# ## native-country
+
+# In[ ]:
+
+
+df['native-country'].value_counts(dropna=False) #lots of variation and very granular. Since data is mostly US I decided to categorize all non-US countries as "other".
+
+
+# In[ ]:
+
+
+df.loc[df["native-country"] != ' United-States', 'native-country'] = 'other' #change non-usa counties to other
+
+
+# In[ ]:
+
+
+df.loc[df["native-country"] == ' United-States', 'native-country'] = 'United-States' #remove blank space
+
+
+# # REMOVE REDUNDANT COLUMNS AND ENCODE OTHERS
+
+# In[ ]:
+
+
+df.drop(['fnlwgt','education-num','capital-gain','capital-loss','hours-per-week','race','native-country','workclass','relationship'], axis=1, inplace=True) #drop columns that would be difficult to target in Facebook Ads
+
+
+# In[ ]:
+
+
+# All categorical variables are converted to seperate columns using one-hot encoding
+df = pd.get_dummies(data=df, columns=['age','education','marital-status','occupation','sex'])
+
+
+# In[ ]:
+
+
+len(df.columns) # Count number of columns (including the new ones)
+
+
+# # FEATURE SELECTION
+
+# In[ ]:
+
+
+len(df.columns) # Count number of columns
+
+
+# In[ ]:
+
+
+def variance_threshold_selector(data, threshold=0.0):
+    selector = VarianceThreshold(threshold)
+    selector.fit(df)
+    return df[df.columns[selector.get_support(indices=True)]]
+
+
+# In[ ]:
+
+
+df_fs = variance_threshold_selector(df,.9* (1 - .9))
+
+
+# In[ ]:
+
+
+print(df_fs.columns)
+
+
+# In[ ]:
+
+
+len(df_fs.columns) # Count number of columns
+
+
+# In[ ]:
+
+
+df_fs.info() #column types and counts
+
+
+# # DECISION TREE
+
+# In[ ]:
+
+
+#select dataset in features and target variable
+
+feature_cols = ['age_17-24', 'age_25-34', 'age_35-44', 'age_45-54',
+       'education_Bachelors', 'education_HS-grad', 'education_Some-college',
+       'marital-status_ Divorced', 'marital-status_ Married-civ-spouse',
+       'marital-status_ Never-married', 'occupation_ Adm-clerical',
+       'occupation_ Craft-repair', 'occupation_ Exec-managerial',
+       'occupation_ Other-service', 'occupation_ Prof-specialty',
+       'occupation_ Sales', 'sex_ Female', 'sex_ Male'] #feature variables
+X = df[feature_cols] # Features
+y = df.income_bracket # Target variable
+
+
+# In[ ]:
+
+
+# Split dataset into training set and test set
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=1) # 70% training and 30% testx
+
+
+# In[ ]:
+
+
+# Create Decision Tree classifer object
+clf = DecisionTreeClassifier(max_depth=6)
+
+# Train Decision Tree Classifer
+clf = clf.fit(X_train,y_train)
+
+#Predict the response for test dataset
+y_pred = clf.predict(X_test)
+
+# Model Accuracy, how often is the classifier correct?
+print("Accuracy:",metrics.accuracy_score(y_test, y_pred))
+print("Recall:",metrics.recall_score(y_test, y_pred))
+
+
+# In[ ]:
+
+
+dot_data = StringIO()
+export_graphviz(clf, out_file=dot_data,  
+                filled=True, rounded=True,
+                special_characters=True,feature_names = feature_cols,class_names=['less than 50k','greater than 50k'])
+graph = pydotplus.graph_from_dot_data(dot_data.getvalue())  
+graph.write_png('facebookads_project.png')
+Image(graph.create_png())
+
+
+# # START OF KNN CODE
+
+# In[ ]:
+
+
+# Import train_test_split function
+from sklearn.model_selection import train_test_split
+
+
+#split dataset in features and target variable
+
+feature_cols = ['age_17-24', 'age_25-34', 'age_35-44', 'age_45-54',
+       'education_Bachelors', 'education_HS-grad', 'education_Some-college',
+       'marital-status_ Divorced', 'marital-status_ Married-civ-spouse',
+       'marital-status_ Never-married', 'occupation_ Adm-clerical',
+       'occupation_ Craft-repair', 'occupation_ Exec-managerial',
+       'occupation_ Other-service', 'occupation_ Prof-specialty',
+       'occupation_ Sales', 'sex_ Female', 'sex_ Male'] #feature variables
+X = df_fs[feature_cols] # Features
+y = df_fs.income_bracket # Target variable
+
+
+# Split dataset into training set and test set
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=1) # 70% training and 30% testx
+
+
+# In[ ]:
+
+
+#Import knearest neighbors Classifier model
+from sklearn.neighbors import KNeighborsClassifier
+
+#Create KNN Classifier
+knn = KNeighborsClassifier(n_neighbors=24)
+
+#Train the model
+knn.fit(X_train, y_train)
+
+#Predict the response for test dataset
+y_pred = knn.predict(X_test)
+
+
+# In[ ]:
+
+
+#Import scikit-learn metrics module for accuracy calculation
+from sklearn import metrics
+# Model Accuracy
+print("Accuracy:",metrics.accuracy_score(y_test, y_pred))
+print("Recall:",metrics.recall_score(y_test, y_pred))
+
+
+# In[ ]:
+
+
+## OPTIMIZE MODEL
+
+
+# In[ ]:
+
+
+from sklearn.model_selection import GridSearchCV
+#create new a knn model
+knn2 = KNeighborsClassifier()
+#create a dictionary of all values we want to test for n_neighbors
+param_grid = {'n_neighbors': np.arange(1, 25)}
+#use gridsearch to test all values for n_neighbors
+knn_gscv = GridSearchCV(knn2, param_grid, cv=5)
+#fit model to data
+knn_gscv.fit(X, y)
+
+
+# In[ ]:
+
+
+#check top performing n_neighbors value
+knn_gscv.best_params_
+
+
+# # START OF RANDOM FOREST
+
+# In[ ]:
+
+
+# Import train_test_split function
+from sklearn.model_selection import train_test_split
+
+feature_cols = ['age_17-24', 'age_25-34', 'age_35-44', 'age_45-54',
+       'education_Bachelors', 'education_HS-grad', 'education_Some-college',
+       'marital-status_ Divorced', 'marital-status_ Married-civ-spouse',
+       'marital-status_ Never-married', 'occupation_ Adm-clerical',
+       'occupation_ Craft-repair', 'occupation_ Exec-managerial',
+       'occupation_ Other-service', 'occupation_ Prof-specialty',
+       'occupation_ Sales', 'sex_ Female', 'sex_ Male'] #feature variables
+X = df_fs[feature_cols] # Features
+y = df_fs.income_bracket # Target variable
+
+# Split dataset into training set and test set
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3) # 70% training and 30% test
+
+
+# In[ ]:
+
+
+#Import Random Forest Model
+from sklearn.ensemble import RandomForestClassifier
+
+#Create a Gaussian Classifier
+clf=RandomForestClassifier(n_estimators=100)
+
+#Train the model using the training sets y_pred=clf.predict(X_test)
+clf.fit(X_train,y_train)
+
+y_pred=clf.predict(X_test)
+
+
+# In[ ]:
+
+
+#Import scikit-learn metrics module for accuracy calculation
+from sklearn import metrics
+# Model Accuracy, how often is the classifier correct?
+print("Accuracy:",metrics.accuracy_score(y_test, y_pred))
+print("Recall:",metrics.recall_score(y_test, y_pred))
+
+
+# # START OF SUPPORT VECTOR MACHINES
+
+# In[ ]:
+
+
+feature_cols = ['age_17-24', 'age_25-34', 'age_35-44', 'age_45-54',
+       'education_Bachelors', 'education_HS-grad', 'education_Some-college',
+       'marital-status_ Divorced', 'marital-status_ Married-civ-spouse',
+       'marital-status_ Never-married', 'occupation_ Adm-clerical',
+       'occupation_ Craft-repair', 'occupation_ Exec-managerial',
+       'occupation_ Other-service', 'occupation_ Prof-specialty',
+       'occupation_ Sales', 'sex_ Female', 'sex_ Male'] #feature variables
+X = df_fs[feature_cols] # Features
+y = df_fs.income_bracket # Target variable
+
+# Split dataset into training set and test set
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3) # 70% training and 30% test
+
+
+# In[ ]:
+
+
+#Import svm model
+from sklearn import svm
+
+#Create a svm Classifier
+clf = svm.SVC(kernel='linear') # Linear Kernel this does not generate a good accuracy and is very slow
+#clf = svm.SVC(kernel='rbf') # better
+#clf = svm.SVC(kernel='poly') # very slow
+
+#Train the model using the training sets
+clf.fit(X_train, y_train)
+ 
+#Predict the response for test dataset
+y_pred = clf.predict(X_test)
+
+
+# In[ ]:
+
+
+# Model Accuracy: how often is the classifier correct?
+print("Accuracy:",metrics.accuracy_score(y_test, y_pred))
+print("Recall:",metrics.recall_score(y_test, y_pred))
+
+
+# In[ ]:
+
+
+
+
